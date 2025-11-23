@@ -5,8 +5,10 @@ pipeline {
         PROJECT_NAME      = "DotnetWebAppToKubernetes"
         PACKAGE_DIR       = "/var/lib/jenkins/packages"
         BUILD_VERSION     = "v1.0.${env.BUILD_NUMBER}"
-        REGISTRY_URL      = "https://hub.docker.com/repositories/nazrul786"
+        REGISTRY_URL      = "nazrul786"  // Docker Hub username
         IMAGE_NAME        = "dotnet-k8s-webapp"
+        PROJECT_PATH      = "DotenetWebAppToKubernetes/DotnetWebAppToKubernetes.csproj"
+        DOCKER_CONTEXT    = "DotenetWebAppToKubernetes" // Folder with Dockerfile
     }
 
     stages {
@@ -27,13 +29,13 @@ pipeline {
 
         stage('Restore Dependencies') {
             steps {
-                sh 'dotnet restore'
+                sh "dotnet restore ${PROJECT_PATH}"
             }
         }
 
         stage('Build App') {
             steps {
-                sh 'dotnet build -c Release'
+                sh "dotnet build ${PROJECT_PATH} -c Release"
             }
         }
 
@@ -41,7 +43,7 @@ pipeline {
             steps {
                 script {
                     if (fileExists('tests')) {
-                        sh 'dotnet test --no-build --verbosity minimal'
+                        sh "dotnet test tests --no-build --verbosity minimal"
                     } else {
                         echo "No tests directory found — skipping unit tests."
                     }
@@ -51,23 +53,27 @@ pipeline {
 
         stage('Publish Release Artifacts') {
             steps {
-                sh """
-                    dotnet publish -c Release -o publish_output
-                """
+                sh "dotnet publish ${PROJECT_PATH} -c Release -o publish_output"
+            }
+        }
+
+        stage('Test Docker') {
+            steps {
+                sh 'docker version'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh """
-                    docker build -t ${IMAGE_NAME}:${BUILD_VERSION} .
-                """
+                echo "Building Docker image..."
+                sh "docker build -t ${IMAGE_NAME}:${BUILD_VERSION} ${DOCKER_CONTEXT}/"
             }
         }
 
         stage('Tag & Push Docker Image') {
             steps {
                 script {
+                    echo "Tagging and pushing Docker image to Docker Hub..."
                     sh """
                         docker tag ${IMAGE_NAME}:${BUILD_VERSION} ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_VERSION}
                         docker push ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_VERSION}
@@ -78,7 +84,7 @@ pipeline {
 
         stage('Archive Artifacts') {
             steps {
-                echo "Archiving publish_output/ as Jenkins build artifacts"
+                echo "Archiving publish_output/ as Jenkins artifacts"
                 archiveArtifacts artifacts: 'publish_output/**/*', fingerprint: true
             }
         }
@@ -88,7 +94,6 @@ pipeline {
                 sh """
                     mkdir -p build_package
                     cp -r publish_output/* build_package/
-
                     zip -r ${PROJECT_NAME}-${BUILD_VERSION}.zip build_package
                 """
             }
@@ -106,9 +111,9 @@ pipeline {
 
     post {
         success {
-            echo "✔ Build Successful!"
-            echo "✔ Package created: ${PROJECT_NAME}-${BUILD_VERSION}.zip"
-            echo "✔ Saved in: ${PACKAGE_DIR}"
+            echo "Build Successful!"
+            echo "Package created: ${PROJECT_NAME}-${BUILD_VERSION}.zip"
+            echo "Saved in: ${PACKAGE_DIR}"
         }
         failure {
             echo "Build Failed — check console for errors."

@@ -1,33 +1,24 @@
-# ===============================
-# STAGE 1: Build the application
-# ===============================
+# Stage 1: Build
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-WORKDIR /src
-
-# Copy csproj and restore dependencies
-COPY ["DotnetWebAppToKubernetes.csproj", "./"]
-RUN dotnet restore
-
-# Copy everything else and publish
-COPY . .
-RUN dotnet publish -c Release -o /app/publish
-
-# ===============================
-# STAGE 2: Runtime image
-# ===============================
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 
-# Copy the build output
-COPY --from=build /app/publish .
+# Copy project file and restore dependencies
+COPY DotnetWebAppToKubernetes.csproj ./
+RUN dotnet restore
 
-# Expose ports
+# Copy the rest of the source code and publish
+COPY . ./
+RUN dotnet publish -c Release -o out
+
+# Stage 2: Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+
+# Copy published output from build stage
+COPY --from=build /app/out ./
+
+# Expose the port your app runs on
 EXPOSE 80
-EXPOSE 443
 
-# Environment variable for database connection
-# (Kubernetes will override this)
-ENV ConnectionStrings__DefaultConnection="Host=postgres;Port=5432;Database=MyWebAppDB;Username=postgres;Password=postgres"
-
-# Start the app
+# Run the app
 ENTRYPOINT ["dotnet", "DotnetWebAppToKubernetes.dll"]
