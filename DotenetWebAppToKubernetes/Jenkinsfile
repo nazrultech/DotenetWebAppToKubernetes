@@ -65,7 +65,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh "docker --context ${DOCKER_CONTEXT} build -t ${IMAGE_NAME}:${BUILD_VERSION} ."
+                sh "docker --context default build -t dotnet-k8s-webapp:${BUILD_VERSION} DotenetWebAppToKubernetes/"
             }
         }
 
