@@ -1,0 +1,117 @@
+pipeline {
+    agent any
+
+    environment {
+        PROJECT_NAME      = "DotnetWebAppToKubernetes"
+        PACKAGE_DIR       = "/var/lib/jenkins/packages"
+        BUILD_VERSION     = "v1.0.${env.BUILD_NUMBER}"
+        REGISTRY_URL      = "https://hub.docker.com/repositories/nazrul786"
+        IMAGE_NAME        = "dotnet-k8s-webapp"
+    }
+
+    stages {
+
+        stage('Clean Workspace') {
+            steps {
+                echo "Cleaning workspace..."
+                cleanWs()
+            }
+        }
+
+        stage('Checkout Code') {
+            steps {
+                echo "Fetching code from SCM..."
+                checkout scm
+            }
+        }
+
+        stage('Restore Dependencies') {
+            steps {
+                sh 'dotnet restore'
+            }
+        }
+
+        stage('Build App') {
+            steps {
+                sh 'dotnet build -c Release'
+            }
+        }
+
+        stage('Run Unit Tests') {
+            steps {
+                script {
+                    if (fileExists('tests')) {
+                        sh 'dotnet test --no-build --verbosity minimal'
+                    } else {
+                        echo "No tests directory found — skipping unit tests."
+                    }
+                }
+            }
+        }
+
+        stage('Publish Release Artifacts') {
+            steps {
+                sh """
+                    dotnet publish -c Release -o publish_output
+                """
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh """
+                    docker build -t ${IMAGE_NAME}:${BUILD_VERSION} .
+                """
+            }
+        }
+
+        stage('Tag & Push Docker Image') {
+            steps {
+                script {
+                    sh """
+                        docker tag ${IMAGE_NAME}:${BUILD_VERSION} ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_VERSION}
+                        docker push ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_VERSION}
+                    """
+                }
+            }
+        }
+
+        stage('Archive Artifacts') {
+            steps {
+                echo "Archiving publish_output/ as Jenkins build artifacts"
+                archiveArtifacts artifacts: 'publish_output/**/*', fingerprint: true
+            }
+        }
+
+        stage('Create Deployment Package') {
+            steps {
+                sh """
+                    mkdir -p build_package
+                    cp -r publish_output/* build_package/
+
+                    zip -r ${PROJECT_NAME}-${BUILD_VERSION}.zip build_package
+                """
+            }
+        }
+
+        stage('Copy Package to Folder') {
+            steps {
+                sh """
+                    sudo mkdir -p ${PACKAGE_DIR}
+                    sudo cp ${PROJECT_NAME}-${BUILD_VERSION}.zip ${PACKAGE_DIR}/
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✔ Build Successful!"
+            echo "✔ Package created: ${PROJECT_NAME}-${BUILD_VERSION}.zip"
+            echo "✔ Saved in: ${PACKAGE_DIR}"
+        }
+        failure {
+            echo "Build Failed — check console for errors."
+        }
+    }
+}
