@@ -1,24 +1,18 @@
-# Stage 1: Build
+# Use the official .NET 8 SDK image for build
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 
-# Copy project file and restore dependencies
-COPY DotnetWebAppToKubernetes.csproj ./
+# Copy csproj and restore
+COPY DotenetWebAppToKubernetes/*.csproj ./
 RUN dotnet restore
 
-# Copy the rest of the source code and publish
-COPY . ./
+# Copy all source and build
+COPY DotenetWebAppToKubernetes/. ./
 RUN dotnet publish -c Release -o out
 
-# Stage 2: Runtime
+# Runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
-
-# Copy published output from build stage
-COPY --from=build /app/out ./
-
-# Expose the port your app runs on
+COPY --from=build /app/out .
 EXPOSE 80
-
-# Run the app
 ENTRYPOINT ["dotnet", "DotnetWebAppToKubernetes.dll"]
