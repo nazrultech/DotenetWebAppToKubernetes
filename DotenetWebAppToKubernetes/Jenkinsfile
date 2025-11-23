@@ -5,10 +5,10 @@ pipeline {
         PROJECT_NAME      = "DotnetWebAppToKubernetes"
         PACKAGE_DIR       = "/var/lib/jenkins/packages"
         BUILD_VERSION     = "v1.0.${env.BUILD_NUMBER}"
-        REGISTRY_URL      = "nazrul786"  // Docker Hub username
+        REGISTRY_URL      = "nazrul786"
         IMAGE_NAME        = "dotnet-k8s-webapp"
         PROJECT_PATH      = "DotenetWebAppToKubernetes/DotnetWebAppToKubernetes.csproj"
-        DOCKER_CONTEXT    = "DotenetWebAppToKubernetes" // Folder with Dockerfile
+        DOCKER_CONTEXT    = "default" // Use default Docker context
     }
 
     stages {
@@ -59,26 +59,22 @@ pipeline {
 
         stage('Test Docker') {
             steps {
-                sh 'docker version'
+                sh "docker --context ${DOCKER_CONTEXT} version"
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo "Building Docker image..."
-                sh "docker build -t ${IMAGE_NAME}:${BUILD_VERSION} ${DOCKER_CONTEXT}/"
+                sh "docker --context ${DOCKER_CONTEXT} build -t ${IMAGE_NAME}:${BUILD_VERSION} ."
             }
         }
 
         stage('Tag & Push Docker Image') {
             steps {
-                script {
-                    echo "Tagging and pushing Docker image to Docker Hub..."
-                    sh """
-                        docker tag ${IMAGE_NAME}:${BUILD_VERSION} ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_VERSION}
-                        docker push ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_VERSION}
-                    """
-                }
+                sh """
+                    docker --context ${DOCKER_CONTEXT} tag ${IMAGE_NAME}:${BUILD_VERSION} ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_VERSION}
+                    docker --context ${DOCKER_CONTEXT} push ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_VERSION}
+                """
             }
         }
 
