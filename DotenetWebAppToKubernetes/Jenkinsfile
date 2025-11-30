@@ -71,10 +71,10 @@ pipeline {
 
         stage('Tag & Push Docker Image') {
             steps {
-                sh """
-                    docker --context ${DOCKER_CONTEXT} tag ${IMAGE_NAME}:${BUILD_VERSION} ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_VERSION}
-                    docker --context ${DOCKER_CONTEXT} push ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_VERSION}
-                """
+                    sh """
+                    docker tag dotnet-k8s-webapp:v1.0.19 $DOCKER_USERNAME/dotnet-k8s-webapp:v1.0.19
+                    docker push $DOCKER_USERNAME/dotnet-k8s-webapp:v1.0.19
+                    """
             }
         }
 
