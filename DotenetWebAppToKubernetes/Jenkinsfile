@@ -71,10 +71,20 @@ pipeline {
 
         stage('Tag & Push Docker Image') {
             steps {
-                    sh """
-                    docker tag dotnet-k8s-webapp:v1.0.19 $DOCKER_USERNAME/dotnet-k8s-webapp:v1.0.19
-                    docker push $DOCKER_USERNAME/dotnet-k8s-webapp:v1.0.19
-                    """
+                script {
+                    withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-credentials',   // <-- your DockerHub creds ID
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )]) {
+        
+                        sh """
+                            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                            docker tag dotnet-k8s-webapp:${BUILD_VERSION} $DOCKER_USERNAME/dotnet-k8s-webapp:${BUILD_VERSION}
+                            docker push $DOCKER_USERNAME/dotnet-k8s-webapp:${BUILD_VERSION}
+                        """
+                    }
+                }
             }
         }
 
