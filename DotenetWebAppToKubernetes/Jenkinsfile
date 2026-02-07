@@ -108,8 +108,8 @@ pipeline {
         stage('Copy Package to Folder') {
             steps {
                 sh """
-                    sudo mkdir -p ${PACKAGE_DIR}
-                    sudo cp ${PROJECT_NAME}-${BUILD_VERSION}.zip ${PACKAGE_DIR}/
+                    mkdir -p ${PACKAGE_DIR}
+                    cp ${PROJECT_NAME}-${BUILD_VERSION}.zip ${PACKAGE_DIR}/
                 """
             }
         }
